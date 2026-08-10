@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeSubmitPrompt": [
+      {
+        "command": "python .cursor/hooks/brain-inject.py",
+        "timeout": 30
+      }
+    ],
+    "stop": [
+      {
+        "command": "python .cursor/hooks/brain-submit.py",
+        "timeout": 60
+      }
+    ]
+  }
+}

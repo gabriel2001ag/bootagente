@@ -156,11 +156,101 @@ apenas conhecimento com evidencia (arquivo, tarefa, linha, aprovacao) — nunca
 hipotese sem confirmacao, nem conversa casual.
 
 
+### Retroalimentacao Agente ↔ Brain (recomendado)
+
+O ciclo fecha sozinho quando os hooks do agente estao ativos — Cursor
+(`.cursor/hooks.json`) ou Claude Code (`.claude/settings.json`), ambos jah
+configurados neste template:
+
+```
+Usuario envia prompt
+    → hook beforeSubmitPrompt/UserPromptSubmit carrega rules/patterns/lessons (Brain → Agente)
+    → agente investiga, implementa, valida
+    → hook stop/Stop registra evidencias Git e learning (Agente → Brain)
+    → proxima tarefa reutiliza o conhecimento capturado
+```
+
+Antes de abrir/fechar a tarefa, o hook ativa automaticamente no Brain o
+projeto correspondente ao workspace atual (`tools/bootstrap.py`, via
+`get_or_create` + `set_active`). Isso importa porque `project_brain.db` e
+`state.json` sao compartilhados entre repositorios que apontam para o mesmo
+`project-brain` (por `.brain-path` ou por estarem dentro do mesmo template);
+sem esse auto-bootstrap, o `active_project_id` global poderia continuar
+apontando para outro ERP e a tarefa/evidencia seria gravada no projeto
+errado. O auto-bootstrap e best-effort: se o Brain nao for localizavel a
+partir do workspace, o hook silenciosamente nao injeta contexto (ou nao
+fecha tarefa) e o agente segue sem bloquear.
+
+**Abrir tarefa (Brain → Agente)** — antes de investigar codigo:
+```bash
+cd project-brain
+python -m tools.auto_context "Titulo curto da tarefa"
+```
+Devolve rules, patterns, lessons, tarefas similares e arquivos candidatos.
+Grava `active_task_id` em `state.json` para encerrar depois.
+
+**Fechar tarefa (Agente → Brain)** — apos QA/review aprovado:
+```bash
+cd project-brain
+python -m tools.auto_submit --task-id <id>
+# ou, se a tarefa ativa ainda estiver aberta:
+python -m tools.auto_submit
+```
+Detecta arquivos Git modificados, reindexa incrementalmente, monta evidencias
+e aplica learning (`config.yaml`: `learning.automatic_after_approval`).
+
+Para learning rico (rules/patterns/lessons explicitos), use `--file resultado.json`.
+
+**Hooks Cursor** (`.cursor/hooks.json`):
+
+- `beforeSubmitPrompt` → `.cursor/hooks/brain-inject.py` injeta contexto do Brain
+- `stop` → `.cursor/hooks/brain-submit.py` submete tarefa ativa com mudancas Git
+
+**Hooks Claude Code** (`.claude/settings.json`):
+
+- `UserPromptSubmit` → `.claude/hooks/brain-inject.py` injeta contexto do Brain
+- `Stop` → `.claude/hooks/brain-submit.py` submete tarefa ativa com mudancas Git
+
+O agente deve preferir fatos do Brain antes de redescobrir; ao concluir, deve
+garantir que `auto_submit` rodou (hook ou manual) quando houve mudanca real.
+
+Nucleo compartilhado: `project-brain/tools/brain_loop.py` (funcoes `open_task`,
+`close_task`, `inject_context_for_prompt`, `submit_on_stop`) +
+`project-brain/tools/bootstrap.py` (ativacao do projeto do workspace atual).
+Ambos os pares de hooks (Cursor e Claude Code) chamam exatamente esse nucleo
+— trocar de agente no mesmo repositorio nao quebra a retroalimentacao.
+
+
 ### Protocolo tecnico de ensino (Codex e Claude Code)
 
 Esta secao vale para qualquer agente que leia este `AGENTS.md` — Codex no VS
-Code ou Claude Code. O ensino do Brain nao e automatico: exige rodar a CLI a
-partir de `project-brain/` (`C:\Users\gabriel-infocase\Documents\Codex-agentes-ERP-template\project-brain`).
+Code ou Claude Code. O ensino do Brain pode ser automatico (hooks + `auto_submit`)
+ou manual (CLI completa) a partir de `project-brain/`.
+
+#### Metodo 1: Ciclo rapido (retroalimentacao)
+
+1. **Inicio**: `python -m tools.auto_context "Titulo"` — carrega memoria do Brain.
+2. **Fim**: `python -m tools.auto_submit` — registra evidencias e learning.
+3. Com os hooks ativos (Cursor ou Claude Code), os passos 1 e 2 ocorrem automaticamente.
+
+#### Metodo 2: Auto-submit generico
+
+O script `tools/auto_submit.py` fecha a tarefa ativa ou cria uma nova:
+
+```bash
+cd project-brain
+python -m tools.auto_submit "Titulo da tarefa" --description "Descricao"
+python -m tools.auto_submit --task-id 42 --file resultado.json
+```
+
+Funcionamento:
+1. Detecta arquivos modificados no Git
+2. Reindexa incrementalmente arquivos alterados
+3. Usa tarefa ativa (`state.json`) ou cria nova
+4. Gera auditoria (senior-response.json, evidence.json)
+5. Aplica learning se houver evidencias ou JSON com rules/lessons
+
+#### Metodo 3: Fluxo manual completo (conhecimento detalhado)
 
 1. Antes de comecar uma tarefa tecnica real, abrir/rastrear a tarefa no Brain:
    `python -m cli.main task "<titulo curto da tarefa>"`.
@@ -182,9 +272,6 @@ partir de `project-brain/` (`C:\Users\gabriel-infocase\Documents\Codex-agentes-E
    Submissao duplicada ou com o commit Git do projeto alterado desde a criacao
    da tarefa (`STALE_CONTEXT`) e recusada; nesse caso, abrir uma tarefa nova em
    vez de forcar a antiga.
-6. Descartar o JSON temporario apos o submit (o conteudo ja fica persistido no
-   banco do Brain e em `task-data/`); nao deixar esses arquivos soltos dentro
-   do ERP.
 
 Se o Brain sinalizar `STALE_CONTEXT` ou proteger contra contexto desatualizado,
 atualizar o contexto corretamente; nunca editar o SQLite manualmente, remover a
