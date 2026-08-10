@@ -1,0 +1,20 @@
+# Sistema local de agentes
+/AGENTS*.md
+/agedev.md
+/reviewer.md
+/agents/
+/docs/agent/
+/docs/agentes/
+/.agents/
+/.codex/
+/tools/gerar-sistema-agentes.ps1
+
+# Artefatos Python e dados locais do Project Brain
+__pycache__/
+*.py[cod]
+/.pytest_cache/
+/project-brain/.pytest_cache/
+/project-brain/.venv/
+/project-brain/project_brain.db
+/project-brain/state.json
+/project-brain/task-data/

@@ -1,0 +1,19 @@
+# Reference template for a Pattern (seção 9). Not auto-loaded — patterns
+# live in the `patterns` table (brain/patterns.py). Use as an authoring
+# template for PatternRepository.add(...).
+
+id: PATTERN-CI4-VALIDATION-001
+category: validation
+framework: CodeIgniter4
+trigger: numeric_range
+procedure:
+  - locate request parameters
+  - locate controller
+  - locate existing validation style
+  - insert backend validation
+  - find corresponding form
+  - add frontend validation if appropriate
+  - execute php lint
+  - inspect git diff
+approved: true
+confidence: 1.0

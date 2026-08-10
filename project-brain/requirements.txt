@@ -1,0 +1,7 @@
+# Project Brain V1 — deliberately minimal dependency footprint (seção 3/32).
+# No LLM, no GPU, no embeddings, no vector DB (seção 35).
+
+PyYAML>=6.0
+
+# Dev/test only:
+pytest>=8.0

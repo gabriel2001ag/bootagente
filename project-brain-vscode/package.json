@@ -1,0 +1,94 @@
+{
+  "name": "project-brain-vscode",
+  "publisher": "local",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:projectBrain.chatView",
+    "onCommand:projectBrain.*"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "projectBrain",
+          "title": "Project Brain",
+          "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTAgMmE1IDUgMCAwIDAtNC45NCA0QzIuODMgNi40IDIgOC4yIDIgMTBhNSA1IDAgMCAwIDUgNSAxIDEgMCAwIDEgMSAxdjRhMSAxIDAgMCAwIDEgMWg0YTEgMSAwIDAgMCAxLTF2LTRhMSAxIDAgMCAxIDEtMSA1IDUgMCAwIDAgNS01YzAtMS44LS44My0zLjYtMy4wNi00QTUgNSAwIDAgMCAxNCAyYTQgNCAwIDAgMC00IDR6Ii8+PHBhdGggZD0iTTkgMTh2MmEiLz48L3N2Zz4="
+        }
+      ]
+    },
+    "views": {
+      "projectBrain": [
+        {
+          "id": "projectBrain.chatView",
+          "name": "Chat"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "projectBrain.openChat",
+        "title": "Project Brain: Open Chat"
+      },
+      {
+        "command": "projectBrain.newSession",
+        "title": "Project Brain: New Session"
+      },
+      {
+        "command": "projectBrain.refreshStatus",
+        "title": "Project Brain: Refresh Status"
+      },
+      {
+        "command": "projectBrain.toggleTechnical",
+        "title": "Project Brain: Toggle Technical Details"
+      }
+    ],
+    "configuration": {
+      "title": "Project Brain",
+      "properties": {
+        "projectBrain.path": {
+          "type": "string",
+          "default": "../project-brain",
+          "description": "Caminho para a pasta do Project Brain (onde está run_bridge.py)"
+        },
+        "projectBrain.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Caminho para o executável Python"
+        },
+        "projectBrain.port": {
+          "type": "number",
+          "default": 8765,
+          "description": "Porta do bridge HTTP do Project Brain"
+        },
+        "projectBrain.autoStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Iniciar o bridge automaticamente ao abrir a sidebar"
+        },
+        "projectBrain.showTechnicalDetails": {
+          "type": "boolean",
+          "default": false,
+          "description": "Mostrar detalhes técnicos das respostas por padrão"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "18.x",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.9.2",
+    "typescript": "^5.3.0"
+  }
+}

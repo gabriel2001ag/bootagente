@@ -1,0 +1,24 @@
+# Reference template for a Rule (seção 8). This file is NOT loaded by the
+# system automatically — rules live in the `rules` table (brain/rules.py).
+# Use this as a human-authoring template when writing a rule to insert via
+# RuleRepository.add(...) or a future `brain rule add` command (V2).
+
+id: RULE-001
+category: development
+condition: null
+rule: "Never modify functionality outside the task scope."
+dont: []
+confidence: 1.0
+source: manual
+approved: true
+
+---
+# A conditional, project-specific rule example (from the spec):
+id: PARIPASSU-001
+category: paripassu
+condition: "origem_publica == false"
+rule: "nomeAlternativo is required"
+dont:
+  - "update existing elo unnecessarily"
+confidence: 1.0
+approved: true

@@ -1,0 +1,26 @@
+# Reference template for a Lesson (seção 10). Not auto-loaded — lessons
+# live in the `lessons` table (brain/lessons.py). Use as an authoring
+# template for LessonRepository.add(...).
+
+id: LESSON-0001
+task: "limitar intervalo de pedidos"
+problem: "intervalo não possuía limite real"
+solution: "validar intervalo no backend e frontend"
+files:
+  - app/Controllers/Pedido.php
+  - app/Views/pedido/impressao_lote.php
+category: validation
+approved: true
+validated_by: senior
+confidence: 1.0
+
+---
+# Example of a lesson born from a Senior REJECTING a local bot patch
+# (seção 25) — these are especially valuable:
+id: LESSON-0002
+task: "consultar dados de uma nota fiscal"
+mistake: "consultou nota somente pelo número"
+lesson: "considerar pedido_id_fk no fluxo"
+category: nfe
+approved: true
+source: senior_review

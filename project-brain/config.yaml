@@ -1,0 +1,170 @@
+# Project Brain — global configuration (seção 28).
+#
+# This file holds GLOBAL defaults only (not a single project path — see
+# ARCHITECTURE.md section 2). Registered projects live in project_brain.db
+# (table `projects`); the "active project" pointer lives in state.json,
+# both created automatically by `brain init <path>`.
+
+confidence:
+  auto_execute: 0.95
+  requires_review: 0.80
+  analysis_only: 0.60
+
+safety:
+  allow_destructive_commands: false
+
+senior:
+  provider: codex-vscode  # Codex in VS Code pulls context and submits results to the Brain
+  enabled: true
+  mock_availability: AVAILABLE  # one of: AVAILABLE, UNAVAILABLE, RATE_LIMITED, AUTH_ERROR,
+                                  # QUOTA_EXCEEDED, TIMEOUT, UNKNOWN_ERROR — lets you rehearse
+                                  # both "Senior online" and "Senior offline / local fallback"
+                                  # without touching any real credentials.
+
+fallback:
+  enabled: true
+
+concepts:
+  groups:
+    orders: [pedido, pedidos, orcamento, orçamento, item, itens]
+    inventory: [estoque, lote, saldo, movimentacao, movimentação]
+    finance: [financeiro, parcela, parcelas, boleto, baixa]
+    fiscal:
+      [
+        fiscal, tributo, tributos, cfop, nfe, nf-e, nota,
+        cte, ct-e, nfce, nfc-e, conhecimento, transporte,
+      ]
+    analysis: [analisar, analise, análise, mapear, investigar]
+    change: [alterar, editar, incluir, remover, corrigir]
+  aliases:
+    orcamentos: orders
+    orçamentos: orders
+    venda: orders
+    vendas: orders
+    produto: inventory
+    produtos: inventory
+    financeira: finance
+    financeiras: finance
+    nota_fiscal: fiscal
+  relationships:
+    orders:
+      inventory: 0.8
+      finance: 0.7
+      fiscal: 0.7
+
+# Camada PLN (seção PLN) — vocabulário fora do Python, evolui sem redeploy.
+language:
+  pt_br:
+    # Reescrita conservadora de token inteiro (nunca substring); nunca toca
+    # identificadores de código, pois só mensagens de chat passam por aqui.
+    replacements:
+      vc: voce
+      vcs: voces
+      oq: o que
+      pq: porque
+      analize: analise
+      analizar: analisar
+      concerte: conserte
+      ero: erro
+      brench: branch
+    actions:
+      ANALYZE:
+        - analisar
+        - analise
+        - verificar
+        - veja
+        - olhar
+        - dar uma olhada
+        - da uma olhada
+        - conferir
+        - avaliar
+        - investigar
+        - investigue
+        - mapear
+      SHOW_STATUS:
+        - como esta
+        - em que ponto
+        - em que pe
+        - onde estamos
+        - o que falta
+        - ate onde foi
+        - status
+      FIX:
+        - corrigir
+        - corrija
+        - arrumar
+        - resolver
+        - consertar
+        - conserte
+      IMPLEMENT:
+        - implementar
+        - implemente
+        - criar
+        - adicionar
+        - incluir
+
+retrieval:
+  rules_limit: 10
+  patterns_limit: 10
+  lessons_limit: 10
+  similar_tasks_limit: 5
+  similar_tasks_min_score: 0.10
+  rules_min_score: 0.20
+  patterns_min_score: 0.20
+  lessons_min_score: 0.10
+  code_min_score: 0.20
+
+learning:
+  automatic_after_approval: true
+
+git:
+  required: true
+
+qa:
+  run_php_lint: true
+  run_composer_test: false
+  run_phpunit: false
+
+indexing:
+  ignored_dirs:
+    - .git
+    - vendor
+    - node_modules
+    - storage
+    - writable
+    - "writable_*"
+    - logs
+    - log
+    - cache
+    - sessions
+    - session
+    - tmp
+    - temp
+    - coverage
+    - .vscode
+    - .idea
+    - __pycache__
+    - dist
+    - build
+    - .venv
+    - venv
+    - .agents
+    - .codex
+  ignored_globs:
+    - "AGENTS*.md"
+    - "agedev.md"
+    - "reviewer.md"
+    - "docs/agentes/**"
+    - "public/uploads/**"
+    - "public/cache/**"
+    - "public/tmp/**"
+  sensitive_globs:
+    - ".env"
+    - ".env.*"
+    - "*.log"
+    - "*.sqlite"
+    - "*.sqlite3"
+    - "*.db"
+    - "*.session"
+    - "*.cache"
+  project_overrides: {}

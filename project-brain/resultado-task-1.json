@@ -1,0 +1,480 @@
+{
+  "status": "SUCCESS",
+  "summary": "O fluxo de pedidos é centralizado em app/Controllers/Pedido.php e atende entrada, saída e orçamento. A gravação diferencia inclusão e alteração, persiste tab_pedido e tab_itens em transação, movimenta estoque para pedidos, recria o financeiro e encaminha a emissão fiscal ao controller Nota. ItemService e CfopResolverService centralizam o snapshot fiscal dos itens. As views de pedido concentram criação, edição, itens, financeiro, NF-e, XML e impressão. As migrations disponíveis não representam integralmente todos os campos usados pelos Models atuais.",
+  "decision": "ANALYSIS_ONLY",
+  "confidence": 0.98,
+  "requires_human_review": false,
+  "approved_for_learning": true,
+  "important_files": [
+    "app/Config/Routes.php",
+    "app/Controllers/Pedido.php",
+    "app/Controllers/Nota.php",
+    "app/Services/ItemService.php",
+    "app/Services/Fiscal/CfopResolverService.php",
+    "app/Models/PedidoModel.php",
+    "app/Models/ItensModel.php",
+    "app/Models/PagarReceberModel.php",
+    "app/Models/NotaModel.php",
+    "app/Libraries/Estoque.php",
+    "app/Views/pedido/pedido.php",
+    "app/Views/pedido/lista.php",
+    "app/Views/pedido/visualizar.php",
+    "app/Views/pedido/atualizar_estoque.php",
+    "app/Views/pedido/impressao/pedido_lote.php",
+    "app/Views/pedido/impressao/pedido_conteudo.php"
+  ],
+  "affected_modules": [
+    "Pedidos e orçamentos",
+    "Itens e produtos",
+    "Estoque e lotes",
+    "Financeiro, baixas e boletos",
+    "Fiscal, CFOP e NF-e",
+    "Importação XML",
+    "Impressão de pedidos"
+  ],
+  "risks": [
+    "Pedido.php e pedido/pedido.php concentram vários fluxos integrados; futuras OS pontuais têm alto raio de regressão.",
+    "Alterar ou excluir itens exige preservar a reversão do estoque anterior e o controle ite_estoque_lancado para não duplicar saldo.",
+    "A geração financeira remove vínculos de boletos e lançamentos anteriores antes de recriar parcelas; futuras mudanças precisam considerar baixas e isolamento por empresa.",
+    "Pedidos com baixa ativa ou nota fiscal em estado bloqueante possuem guardas explícitas que protegem a integridade financeira e fiscal.",
+    "Models atuais usam campos não presentes nas migrations históricas; as migrations isoladamente não comprovam o DDL vigente em produção.",
+    "A impressão em lote foi alterada no commit analisado e deve ser preservada em futuras OS.",
+    "A view principal contém IDs repetidos para tipo_operacao em formulários distintos, o que torna seletores JavaScript sensíveis ao contexto."
+  ],
+  "rules_discovered": [
+    {
+      "id": "RULE-PEDIDO-001",
+      "category": "orders",
+      "rule": "A alteração de pedido persistido é bloqueada quando existe baixa financeira ativa; quando a NF-e está nos estados SEFAZ 100 ou 101, os campos não financeiros do cabeçalho são preservados.",
+      "condition": "Ao alterar um pedido já persistido.",
+      "dont": [
+        "Não contornar a verificação de baixa ativa.",
+        "Não sobrescrever campos não financeiros de pedido com NF-e nos estados protegidos."
+      ],
+      "confidence": 0.99,
+      "approved": true,
+      "evidence": [
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 3797,
+          "symbol": "Pedido::gravar"
+        },
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 3811,
+          "symbol": "Pedido::gravar"
+        },
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 3838,
+          "symbol": "Pedido::gravar"
+        },
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 5388,
+          "symbol": "Pedido::pedidoPossuiBaixaAtiva"
+        }
+      ]
+    },
+    {
+      "id": "RULE-PEDIDO-002",
+      "category": "inventory",
+      "rule": "Somente pedidos movimentam estoque no fluxo normal de gravação; itens com ite_estoque_lancado igual a zero são bloqueados para atualização, movimentados conforme entrada ou saída e marcados como lançados. Remoções e substituições revertem movimentos já lançados.",
+      "condition": "Ao gravar, substituir ou remover itens de pedido.",
+      "dont": [
+        "Não movimentar novamente item já marcado como lançado.",
+        "Não remover ou substituir item lançado sem executar a operação inversa."
+      ],
+      "confidence": 0.99,
+      "approved": true,
+      "evidence": [
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 3965,
+          "symbol": "Pedido::gravar"
+        },
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 3984,
+          "symbol": "Pedido::gravar"
+        },
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 4001,
+          "symbol": "Pedido::gravar"
+        },
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 2560,
+          "symbol": "Pedido::remItensPed"
+        },
+        {
+          "file": "app/Libraries/Estoque.php",
+          "line": 36,
+          "symbol": "Estoque::entrada"
+        },
+        {
+          "file": "app/Libraries/Estoque.php",
+          "line": 118,
+          "symbol": "Estoque::saida"
+        }
+      ]
+    },
+    {
+      "id": "RULE-PEDIDO-003",
+      "category": "finance",
+      "rule": "Pedidos, diferentemente de orçamentos, geram parcelas em tab_fin_pagar_receber conforme os prazos do pagamento; a regeneração remove vínculos de boletos e lançamentos financeiros anteriores antes de inserir as novas parcelas.",
+      "condition": "Ao gravar pedido ou transformar orçamento em pedido.",
+      "dont": [
+        "Não regenerar parcelas sem avaliar baixas e vínculos de boletos existentes."
+      ],
+      "confidence": 0.99,
+      "approved": true,
+      "evidence": [
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 4061,
+          "symbol": "Pedido::gravar"
+        },
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 4872,
+          "symbol": "Pedido::gerarFinanceiro"
+        },
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 4884,
+          "symbol": "Pedido::gerarFinanceiro"
+        },
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 4926,
+          "symbol": "Pedido::gerarFinanceiro"
+        },
+        {
+          "file": "app/Models/PagarReceberModel.php",
+          "line": 9,
+          "symbol": "PagarReceberModel::$table"
+        }
+      ]
+    },
+    {
+      "id": "RULE-PEDIDO-004",
+      "category": "fiscal",
+      "rule": "A emissão de nota parte de um pedido da empresa corrente; pedido de entrada importado por XML não permite emissão de NF-e própria, e notas nos estados SEFAZ 100, 101 ou 150 bloqueiam alterações materiais.",
+      "condition": "Ao iniciar emissão fiscal ou alterar pedido com nota vinculada.",
+      "dont": [
+        "Não emitir NF-e própria para entrada importada por XML.",
+        "Não contornar os estados fiscais bloqueantes."
+      ],
+      "confidence": 0.99,
+      "approved": true,
+      "evidence": [
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 4367,
+          "symbol": "Pedido::nota"
+        },
+        {
+          "file": "app/Controllers/Nota.php",
+          "line": 859,
+          "symbol": "Nota::index"
+        },
+        {
+          "file": "app/Controllers/Nota.php",
+          "line": 877,
+          "symbol": "Nota::index"
+        },
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 5404,
+          "symbol": "Pedido::pedidoPossuiNotaFiscalBloqueante"
+        }
+      ]
+    }
+  ],
+  "patterns_used": [
+    {
+      "id": "PATTERN-PEDIDO-001",
+      "category": "draft-to-aggregate",
+      "framework": "CodeIgniter 4",
+      "trigger": "Criação ou edição de pedido com itens preparados antes da persistência do cabeçalho.",
+      "procedure": [
+        "Manter itens temporários vinculados ao usuário e ao contexto de tipo e operação.",
+        "Persistir ou atualizar tab_pedido dentro de transação.",
+        "Vincular ao pedido somente os itens do contexto autorizado.",
+        "Executar estoque e financeiro antes do commit."
+      ],
+      "confidence": 0.99,
+      "approved": true,
+      "evidence": [
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 91,
+          "symbol": "Pedido::resolverContextoItemTemporario"
+        },
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 3935,
+          "symbol": "Pedido::gravar"
+        },
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 3946,
+          "symbol": "Pedido::gravar"
+        },
+        {
+          "file": "app/Models/ItensModel.php",
+          "line": 119,
+          "symbol": "ItensModel::builderItensTemporarios"
+        }
+      ]
+    },
+    {
+      "id": "PATTERN-PEDIDO-002",
+      "category": "fiscal-snapshot",
+      "framework": "CodeIgniter 4",
+      "trigger": "Inclusão de item ou recálculo fiscal do pedido.",
+      "procedure": [
+        "Resolver CFOP com o serviço fiscal.",
+        "Montar o snapshot fiscal no ItemService.",
+        "Persistir somente os campos fiscais recalculáveis do ItensModel.",
+        "Executar o recálculo do conjunto de itens em transação."
+      ],
+      "confidence": 0.99,
+      "approved": true,
+      "evidence": [
+        {
+          "file": "app/Services/ItemService.php",
+          "line": 272,
+          "symbol": "ItemService::montarSnapshotFiscalItem"
+        },
+        {
+          "file": "app/Services/ItemService.php",
+          "line": 307,
+          "symbol": "ItemService::recalcularFiscalPedido"
+        },
+        {
+          "file": "app/Services/Fiscal/CfopResolverService.php",
+          "line": 26,
+          "symbol": "CfopResolverService::resolver"
+        },
+        {
+          "file": "app/Models/ItensModel.php",
+          "line": 79,
+          "symbol": "ItensModel::recalcularFiscalPedidoTransacional"
+        }
+      ]
+    }
+  ],
+  "lessons": [
+    {
+      "id": "LESSON-PEDIDO-001",
+      "category": "integration-risk",
+      "problem": "Tratar a alteração de itens como CRUD isolado pode deixar estoque, financeiro ou snapshot fiscal incoerentes com o pedido.",
+      "solution": "Em futuras OS de itens, preservar o contexto temporário, reverter estoque já lançado e manter a sequência transacional existente antes de regenerar o financeiro.",
+      "files": [
+        "app/Controllers/Pedido.php",
+        "app/Libraries/Estoque.php",
+        "app/Models/PagarReceberModel.php"
+      ],
+      "confidence": 0.99,
+      "approved": true,
+      "validated_by": "codex-senior",
+      "evidence": [
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 2368,
+          "symbol": "Pedido::substituirItensPedidoPorRascunho"
+        },
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 3935,
+          "symbol": "Pedido::gravar"
+        },
+        {
+          "file": "app/Controllers/Pedido.php",
+          "line": 4872,
+          "symbol": "Pedido::gerarFinanceiro"
+        }
+      ]
+    },
+    {
+      "id": "LESSON-PEDIDO-002",
+      "category": "schema-validation",
+      "problem": "Inferir o schema vigente somente pelas migrations históricas produz conclusões incompletas, pois os Models atuais aceitam campos ausentes nas migrations originais.",
+      "solution": "Em futuras OS de banco, confrontar Models e consultas runtime com o DDL real do ambiente antes de definir migration, constraint ou rollback.",
+      "files": [
+        "app/Models/PedidoModel.php",
+        "app/Models/ItensModel.php",
+        "app/Database/Migrations/2024-05-16-132931_CreatePedidosTable.php",
+        "app/Database/Migrations/2024-05-10-115225_CreateItensTable.php"
+      ],
+      "confidence": 0.98,
+      "approved": true,
+      "validated_by": "codex-senior",
+      "evidence": [
+        {
+          "file": "app/Models/PedidoModel.php",
+          "line": 8,
+          "symbol": "PedidoModel::$allowedFields"
+        },
+        {
+          "file": "app/Models/ItensModel.php",
+          "line": 35,
+          "symbol": "ItensModel::$allowedFields"
+        },
+        {
+          "file": "app/Database/Migrations/2024-05-16-132931_CreatePedidosTable.php",
+          "line": 27,
+          "symbol": "CreatePedidosTable::up"
+        },
+        {
+          "file": "app/Database/Migrations/2024-05-10-115225_CreateItensTable.php",
+          "line": 37,
+          "symbol": "CreateItensTable::up"
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "claim": "As rotas de entrada, saída, listagem, itens, gravação, fiscal, boletos, visualização, impressão e duplicação convergem para Pedido.",
+      "path": "app/Config/Routes.php",
+      "line": 381,
+      "symbol": "rotas de pedido"
+    },
+    {
+      "claim": "Pedido é o controller principal e instancia Models e Services centrais do fluxo.",
+      "path": "app/Controllers/Pedido.php",
+      "line": 60,
+      "symbol": "Pedido::__construct"
+    },
+    {
+      "claim": "A gravação distingue inclusão de alteração e carrega o pedido existente por ped_id.",
+      "path": "app/Controllers/Pedido.php",
+      "line": 3797,
+      "symbol": "Pedido::gravar"
+    },
+    {
+      "claim": "Cabeçalho, vínculo dos itens, estoque e financeiro fazem parte do fluxo transacional de gravação.",
+      "path": "app/Controllers/Pedido.php",
+      "line": 3935,
+      "symbol": "Pedido::gravar"
+    },
+    {
+      "claim": "PedidoModel persiste o cabeçalho em tab_pedido.",
+      "path": "app/Models/PedidoModel.php",
+      "line": 8,
+      "symbol": "PedidoModel"
+    },
+    {
+      "claim": "ItensModel persiste itens em tab_itens e inclui vínculo com pedido, campos fiscais, lote, estado de estoque e contexto temporário.",
+      "path": "app/Models/ItensModel.php",
+      "line": 35,
+      "symbol": "ItensModel"
+    },
+    {
+      "claim": "A migration original de itens declara a chave pedido_id_fk para tab_pedido com atualização e exclusão em cascata.",
+      "path": "app/Database/Migrations/2024-05-10-115225_CreateItensTable.php",
+      "line": 198,
+      "symbol": "CreateItensTable::up"
+    },
+    {
+      "claim": "EstoqueModel usa tab_estoque, enquanto a biblioteca registra entradas e saídas também em tab_estoque_ficha.",
+      "path": "app/Models/EstoqueModel.php",
+      "line": 9,
+      "symbol": "EstoqueModel"
+    },
+    {
+      "claim": "A entrada de estoque atualiza ou insere saldo e registra a ficha.",
+      "path": "app/Libraries/Estoque.php",
+      "line": 70,
+      "symbol": "Estoque::entrada"
+    },
+    {
+      "claim": "A saída de estoque bloqueia o saldo, atualiza a quantidade e registra a ficha.",
+      "path": "app/Libraries/Estoque.php",
+      "line": 128,
+      "symbol": "Estoque::saida"
+    },
+    {
+      "claim": "O financeiro remove vínculos e lançamentos anteriores e recria parcelas conforme os prazos de pagamento.",
+      "path": "app/Controllers/Pedido.php",
+      "line": 4872,
+      "symbol": "Pedido::gerarFinanceiro"
+    },
+    {
+      "claim": "PagarReceberModel usa tab_fin_pagar_receber e contém vínculos com pedido e nota.",
+      "path": "app/Models/PagarReceberModel.php",
+      "line": 9,
+      "symbol": "PagarReceberModel"
+    },
+    {
+      "claim": "ItemService centraliza montagem e recálculo do snapshot fiscal de itens.",
+      "path": "app/Services/ItemService.php",
+      "line": 272,
+      "symbol": "ItemService::montarSnapshotFiscalItem"
+    },
+    {
+      "claim": "CfopResolverService centraliza a resolução unitária e em lote de CFOP.",
+      "path": "app/Services/Fiscal/CfopResolverService.php",
+      "line": 26,
+      "symbol": "CfopResolverService::resolver"
+    },
+    {
+      "claim": "NotaModel usa tab_nota para os dados fiscais vinculados ao pedido.",
+      "path": "app/Models/NotaModel.php",
+      "line": 10,
+      "symbol": "NotaModel"
+    },
+    {
+      "claim": "O controller Nota carrega o pedido da empresa, verifica importação XML e monta os itens fiscais para emissão.",
+      "path": "app/Controllers/Nota.php",
+      "line": 859,
+      "symbol": "Nota::index"
+    },
+    {
+      "claim": "A tela principal envia criação e alteração ao endpoint pedido/gravar por AJAX.",
+      "path": "app/Views/pedido/pedido.php",
+      "line": 2617,
+      "symbol": "submit de formSaida"
+    },
+    {
+      "claim": "A tela principal inclui itens temporários pelo endpoint pedido/addItem com contexto do pedido, operação e tipo.",
+      "path": "app/Views/pedido/pedido.php",
+      "line": 2395,
+      "symbol": "inclusão de item"
+    },
+    {
+      "claim": "A tela principal inicia a geração fiscal consultando pedido/nota e submetendo o formulário para Nota.",
+      "path": "app/Views/pedido/pedido.php",
+      "line": 4652,
+      "symbol": "gerarNota"
+    },
+    {
+      "claim": "A lista de pedidos carrega dados do controller e oferece impressão em lote.",
+      "path": "app/Views/pedido/lista.php",
+      "line": 315,
+      "symbol": "DataTable de pedidos"
+    },
+    {
+      "claim": "A view de consulta carrega os itens em modo de visualização.",
+      "path": "app/Views/pedido/visualizar.php",
+      "line": 188,
+      "symbol": "itens/getItensVisualizacao"
+    },
+    {
+      "claim": "O fluxo XML grava o pedido pelo endpoint pedido/gravarXml.",
+      "path": "app/Views/pedido/atualizar_estoque.php",
+      "line": 1007,
+      "symbol": "gravação de pedido XML"
+    },
+    {
+      "claim": "A impressão em lote compõe cada pedido com pedido_conteudo.",
+      "path": "app/Views/pedido/impressao/pedido_lote.php",
+      "line": 254,
+      "symbol": "composição da impressão em lote"
+    }
+  ]
+}

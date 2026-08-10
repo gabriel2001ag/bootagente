@@ -1,0 +1,21 @@
+{
+  "status": "SUCCESS",
+  "summary": "Tarefa concluída automaticamente. 1 arquivos modificados.",
+  "decision": "AUTO_EXECUTE_ALLOWED",
+  "confidence": 0.9,
+  "requires_human_review": false,
+  "approved_for_learning": true,
+  "important_files": [
+    "app/Libraries/FrutaGService.php"
+  ],
+  "affected_modules": [],
+  "risks": [],
+  "rules_discovered": [],
+  "patterns_used": [],
+  "lessons": [],
+  "evidence": [
+    {
+      "path": "app/Libraries/FrutaGService.php"
+    }
+  ]
+}
